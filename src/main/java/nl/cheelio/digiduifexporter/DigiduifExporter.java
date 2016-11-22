@@ -93,33 +93,34 @@ public class DigiduifExporter {
             for (int c = 1; c <= maxConnecties; c++) {
 
                 if (c <= leerling.getConnecties().size()) {
-                    sb.append(leerling.getConnecties().get(c).getNaam());
+                    sb.append(leerling.getConnecties().get(c - 1).getNaam());
                 }
                 sb.append(COLUMN_SEPARATOR);
 
 
                 for (int p = 1; p <= maxPhone; p++) {
-                    if (c <= leerling.getConnecties().size() && p <= leerling.getConnecties().get(c).getPhoneNumbers().size()) {
-                        sb.append(leerling.getConnecties().get(c).getPhoneNumbers().get(p));
+                    if (c <= leerling.getConnecties().size() && p <= leerling.getConnecties().get(c - 1).getPhoneNumbers().size()) {
+                        sb.append(leerling.getConnecties().get(c - 1).getPhoneNumbers().get(p - 1));
                     }
                     sb.append(COLUMN_SEPARATOR);
                 }
 
                 for (int a = 1; a <= maxAdres; a++) {
-                    if (c <= leerling.getConnecties().size() && a <= leerling.getConnecties().get(c).getAdres().size()) {
-                        sb.append(leerling.getConnecties().get(c).getAdres().get(a));
+                    if (c <= leerling.getConnecties().size() && a <= leerling.getConnecties().get(c - 1).getAdres().size()) {
+                        sb.append(leerling.getConnecties().get(c - 1).getAdres().get(a - 1));
                     }
                     sb.append(COLUMN_SEPARATOR);
                 }
 
                 for (int e = 1; e <= maxEmail; e++) {
-                    if (c <= leerling.getConnecties().size() && e <= leerling.getConnecties().get(c).getEmailAddresses().size()) {
-                        sb.append(leerling.getConnecties().get(c).getEmailAddresses().get(e));
+                    if (c <= leerling.getConnecties().size() && e <= leerling.getConnecties().get(c - 1).getEmailAddresses().size()) {
+                        sb.append(leerling.getConnecties().get(c - 1).getEmailAddresses().get(e - 1));
                     }
                     sb.append(COLUMN_SEPARATOR);
                 }
             }
             writer.write(sb.toString());
+            writer.newLine();
         }
         writer.flush();
         writer.close();
