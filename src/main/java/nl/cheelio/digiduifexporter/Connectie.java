@@ -58,6 +58,11 @@ public class Connectie {
 
     @Override
     public String toString() {
-        return String.join(",", naam, String.join(";", adres), String.join(";", emailAddresses), String.join(";", phoneNumbers));
+        return "Connectie{" +
+                "naam='" + naam + '\'' +
+                ", adres=" + adres +
+                ", emailAddresses=" + emailAddresses +
+                ", phoneNumbers=" + phoneNumbers +
+                '}';
     }
 }

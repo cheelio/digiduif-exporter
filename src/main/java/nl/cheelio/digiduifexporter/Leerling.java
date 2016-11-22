@@ -73,6 +73,13 @@ public class Leerling {
 
     @Override
     public String toString() {
-        return String.join(",", naam, geboortedatum.toString(), geslacht, jaargroep, activatiecode, Joiner.on("|").join(connecties));
+        return "Leerling{" +
+                "naam='" + naam + '\'' +
+                ", geboortedatum=" + geboortedatum +
+                ", geslacht='" + geslacht + '\'' +
+                ", jaargroep='" + jaargroep + '\'' +
+                ", activatiecode='" + activatiecode + '\'' +
+                ", connecties=" + connecties +
+                '}';
     }
 }

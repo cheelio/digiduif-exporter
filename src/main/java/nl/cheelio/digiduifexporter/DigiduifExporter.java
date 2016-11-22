@@ -14,19 +14,20 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by michiel on 19-11-16.
  */
 public class DigiduifExporter {
+    public static final String COLUMN_SEPARATOR = ";";
     private static final Logger logger = LoggerFactory.getLogger(DigiduifExporter.class);
     private static final String LIST_STUDENTS_URL = "https://mijn.digiduif.nl/SchoolDomain/Students/ListStudents.aspx";
     private static final String LOGIN_URL = "https://mijn.digiduif.nl/Accounts/Login";
     private final PhantomJSDriver driver;
     private int leerlingCount;
     private int currentLeerling;
-    private BufferedWriter bufferedWriter;
 
     public DigiduifExporter() {
         PhantomJsDriverManager.getInstance().setup();
@@ -51,15 +52,77 @@ public class DigiduifExporter {
         }
     }
 
-    public void exportLeerlingen(final String emailAddress, final String password, final String filename) throws IOException {
+    public List<Leerling> exportLeerlingen(final String emailAddress, final String password, final String filename) throws IOException {
 
-        bufferedWriter = Files.newBufferedWriter(new File(filename).toPath());
         login(emailAddress, password);
         driver.get(LIST_STUDENTS_URL);
         leerlingCount = getLeerlingCount();
         currentLeerling = 0;
-        exportLeerlingen();
-        bufferedWriter.close();
+        List<Leerling> leerlingen = exportLeerlingen();
+        writeToFile(leerlingen, new File(filename));
+        return leerlingen;
+    }
+
+    private void writeToFile(List<Leerling> leerlingen, File file) throws IOException {
+        BufferedWriter writer = Files.newBufferedWriter(file.toPath());
+        int maxConnecties = 0, maxAdres = 0, maxEmail = 0, maxPhone = 0;
+        for (Leerling leerling : leerlingen) {
+            if (leerling.getConnecties().size() > maxConnecties) {
+                maxConnecties = leerling.getConnecties().size();
+            }
+
+            for (Connectie connectie : leerling.getConnecties()) {
+                if (connectie.getAdres().size() > maxAdres) {
+                    maxAdres = connectie.getAdres().size();
+                }
+                if (connectie.getEmailAddresses().size() > maxEmail) {
+                    maxEmail = connectie.getEmailAddresses().size();
+                }
+                if (connectie.getPhoneNumbers().size() > maxPhone) {
+                    maxPhone = connectie.getPhoneNumbers().size();
+                }
+            }
+        }
+
+        for (Leerling leerling : leerlingen) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(leerling.getNaam() + COLUMN_SEPARATOR);
+            sb.append(leerling.getGeboortedatum() + COLUMN_SEPARATOR);
+            sb.append(leerling.getGeslacht() + COLUMN_SEPARATOR);
+            sb.append(leerling.getJaargroep() + COLUMN_SEPARATOR);
+            for (int c = 1; c <= maxConnecties; c++) {
+
+                if (c <= leerling.getConnecties().size()) {
+                    sb.append(leerling.getConnecties().get(c).getNaam());
+                }
+                sb.append(COLUMN_SEPARATOR);
+
+
+                for (int p = 1; p <= maxPhone; p++) {
+                    if (c <= leerling.getConnecties().size() && p <= leerling.getConnecties().get(c).getPhoneNumbers().size()) {
+                        sb.append(leerling.getConnecties().get(c).getPhoneNumbers().get(p));
+                    }
+                    sb.append(COLUMN_SEPARATOR);
+                }
+
+                for (int a = 1; a <= maxAdres; a++) {
+                    if (c <= leerling.getConnecties().size() && a <= leerling.getConnecties().get(c).getAdres().size()) {
+                        sb.append(leerling.getConnecties().get(c).getAdres().get(a));
+                    }
+                    sb.append(COLUMN_SEPARATOR);
+                }
+
+                for (int e = 1; e <= maxEmail; e++) {
+                    if (c <= leerling.getConnecties().size() && e <= leerling.getConnecties().get(c).getEmailAddresses().size()) {
+                        sb.append(leerling.getConnecties().get(c).getEmailAddresses().get(e));
+                    }
+                    sb.append(COLUMN_SEPARATOR);
+                }
+            }
+            writer.write(sb.toString());
+        }
+        writer.flush();
+        writer.close();
     }
 
     private int getLeerlingCount() {
@@ -73,7 +136,8 @@ public class DigiduifExporter {
         }
     }
 
-    private void exportLeerlingen() throws IOException {
+    private List<Leerling> exportLeerlingen() throws IOException {
+        List<Leerling> leerlingList = new ArrayList<Leerling>();
         List<WebElement> students = getStudents();
         for (int i = 0; i < students.size(); i++) {
             final WebElement studentRow = students.get(i);
@@ -83,7 +147,7 @@ public class DigiduifExporter {
                 final WebElement achternaamLink = studentRow.findElements(By.tagName("td")).get(1).findElement(By.tagName("a"));
                 final WebElement voornaamLink = studentRow.findElements(By.tagName("td")).get(2).findElement(By.tagName("a"));
                 logger.info("Got link for {} {}, {}/{},  {}%", voornaamLink.getText(), achternaamLink.getText(), currentLeerling, leerlingCount, percentage);
-                export(createLeerlingFromDetailPage(achternaamLink));
+                leerlingList.add(createLeerlingFromDetailPage(achternaamLink));
                 students = getStudents();
             } else {
                 final List<WebElement> navLinks = studentRow.findElements(By.tagName("a"));
@@ -93,20 +157,16 @@ public class DigiduifExporter {
                     final int newPage = getLinkNumber(navLink);
                     if (newPage > currentPage) {
                         if (newPage == Integer.MAX_VALUE && studentRow.findElements(By.id("lnkNextPages")).isEmpty()) {
-                            return;
+                            return null;
                         } else {
                             navLink.click();
-                            exportLeerlingen();
+                            leerlingList.addAll(exportLeerlingen());
                         }
                     }
                 }
             }
         }
-    }
-
-    private void export(Leerling leerling) throws IOException {
-        bufferedWriter.write(leerling.toString());
-        bufferedWriter.flush();
+        return leerlingList;
     }
 
     private List<WebElement> getStudents() {
@@ -141,7 +201,7 @@ public class DigiduifExporter {
 
             for (String adresLine : adres.split("\n")) {
                 if (!adres.isEmpty()) {
-                    adresLine = adresLine.replaceAll("(\\d\\d\\d\\d)-([a-zA-Z][a-zA-Z])","$1 $2");
+                    adresLine = adresLine.replaceAll("(\\d\\d\\d\\d)-([a-zA-Z][a-zA-Z])", "$1 $2");
                     connectie.addAdres(adresLine.trim());
                 }
             }
